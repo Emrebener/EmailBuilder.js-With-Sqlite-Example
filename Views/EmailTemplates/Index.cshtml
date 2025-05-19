@@ -1,0 +1,89 @@
+﻿@model List<EmailTemplateDto>
+
+@if (Model.Any())
+{
+    <h2>Saved Email Templates (@Model.Count)</h2>
+    <ul>
+        @foreach (var item in Model)
+        {
+            <li>
+                <a href="#" onclick="getTemplate('@item.Id')">@item.Name</a>
+            </li>
+        }
+    </ul>
+}
+
+
+<input type="hidden" id="templateId" value="" />
+<input type="text" id="templateName" placeholder="Template Name" />
+<div id="editor" style="height: 600px;"></div>
+<button onclick="saveTemplate()">Save Template</button>
+
+
+<script src="https://editor.unlayer.com/embed.js"></script>
+<script>
+
+    unlayer.init({
+        id: 'editor',
+        displayMode: 'email',
+        appearance: {
+          theme: 'modern_dark',
+        },
+    });
+
+    function saveTemplate() {
+
+        if(document.getElementById('templateName').value == ''){
+            alert('Template name cannot be empty!')
+            return
+        }
+
+        unlayer.exportHtml(function(data) {
+            fetch('/EmailTemplates/SaveTemplate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id: document.getElementById('templateId').value,
+                    name: document.getElementById('templateName').value,
+                    jsonDesign: JSON.stringify(data.design),
+                    htmlContent: data.html
+                })
+            }).then(response => {
+                if (response.ok) {
+                    alert('Template saved!')
+                    location.reload()
+                }
+            });
+        });
+    }
+
+    async function getTemplate(id) {
+        try {
+            const response = await fetch(`/EmailTemplates/GetTemplate?id=${id}`)
+            if (!response.ok) {
+                alert('Failed to load template!')
+                return
+            }
+
+            const data = await response.json()
+            if(!data?.jsonDesign){
+                alert('Template not found!')
+                return
+            }
+
+            let design = JSON.parse(data.jsonDesign)
+
+            // update ui
+            unlayer.loadDesign(design);
+            document.getElementById('templateName').value = data.name
+            document.getElementById('templateId').value = data.id
+        } catch (err) {
+            console.error('Unexpected error:', err)
+            alert('Something went wrong while loading the template')
+        }
+    }
+</script>
+
+
